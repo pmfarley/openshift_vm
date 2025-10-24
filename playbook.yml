@@ -1,0 +1,34 @@
+---
+- name: Provision 100 OpenShift Virtualization VMs using Template
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars/osv_vms.yml
+
+#  tasks:
+#    - name: Fail if KUBECONFIG is not set
+#      ansible.builtin.assert:
+#        that:
+#          - ansible_env.KUBECONFIG is defined
+#        fail_msg: "Environment variable KUBECONFIG must be set for kubernetes.core.k8s to authenticate."
+#      run_once: true
+
+#    - name: Read SSH Public Key for Cloud-Init
+#      ansible.builtin.slurp:
+#        src: "{{ cloud_init_pubkey_path }}"
+#      register: ssh_key_content
+#      run_once: true
+
+    - name: Create Multiple OpenShift Virtual Machines from Template
+      kubernetes.core.k8s:
+        state: present
+        namespace: cdppvcbase 
+        # Deploy the manifest using the template lookup
+        definition: "{{ lookup('template', 'templates/vm-manifest.yml.j2') }}"
+
+#    - name: Display VM Creation Status
+#      ansible.builtin.debug:
+#        msg: "Started creation of VM '{{ item.item }}' (Changed: {{ item.changed }})"
+#      loop: "{{ ocv_vm_deploy_results.results }}"
+#      when: item.changed
