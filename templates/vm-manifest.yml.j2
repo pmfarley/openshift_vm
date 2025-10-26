@@ -116,7 +116,7 @@ spec:
         storage:
           resources:
             requests:
-              storage: 30Gi
+              storage: {{ vm_storage }}
           storageClassName: {{ vm_storage_class }}
   runStrategy: RerunOnFailure
   template:
