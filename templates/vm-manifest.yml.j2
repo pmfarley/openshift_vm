@@ -109,10 +109,10 @@ spec:
         creationTimestamp: null
         name: {{ vm_name }}-dv
       spec:
-        sourceRef:
-          kind: DataSource
-          name: rhel9
-          namespace: openshift-virtualization-os-images
+        source:
+          pvc:
+            name: rhel9.5
+            namespace: cdppvcbase
         storage:
           resources:
             requests:
@@ -129,7 +129,16 @@ spec:
       labels:
         kubevirt.io/domain: {{ vm_name }}
         kubevirt.io/size: large
+        affinity_group_1: ""        
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: affinity_group_1
+                operator: Exists
+            topologyKey: kubernetes.io/hostname    
       architecture: amd64
       domain:
         cpu:
