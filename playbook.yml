@@ -1,12 +1,12 @@
 ---
-- name: Provision 100 OpenShift Virtualization VMs using Template
+- name: Provision Multiple OpenShift Virtualization VMs using Template
   hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
   vars_files:
     - vars/osv_vms.yml
 
-#  tasks:
+  tasks:
 #    - name: Fail if KUBECONFIG is not set
 #      ansible.builtin.assert:
 #        that:
@@ -14,18 +14,36 @@
 #        fail_msg: "Environment variable KUBECONFIG must be set for kubernetes.core.k8s to authenticate."
 #      run_once: true
 
-#    - name: Read SSH Public Key for Cloud-Init
-#      ansible.builtin.slurp:
-#        src: "{{ cloud_init_pubkey_path }}"
-#      register: ssh_key_content
-#      run_once: true
+    - name: Generate VM name list
+      set_fact:
+        vm_names: "{{ lookup('sequence', 'start=' ~ vm_start_index ~ ' end=' ~ (vm_start_index | int + vm_count | int - 1) ~ ' format=' ~ vm_prefix ~ '%0' ~ vm_padding ~ 'd', wantlist=True) }}"
+
+    - name: Show VM IP assignments
+      debug:
+        msg: "{{ vm_name }} will be assigned IP: {{ vm_ip_base }}.{{ vm_ip_start + vm_index }}/23"
+      loop: "{{ vm_names }}"
+      loop_control:
+        loop_var: vm_name
+        index_var: vm_index
 
     - name: Create Multiple OpenShift Virtual Machines from Template
       kubernetes.core.k8s:
         state: present
-        namespace: cdppvcbase 
-        # Deploy the manifest using the template lookup
-        definition: "{{ lookup('template', 'templates/vm-manifest.yml.j2') }}"
+        template: templates/vm-manifest.yml.j2
+      loop: "{{ vm_names }}"
+      loop_control:
+        loop_var: vm_name
+        index_var: vm_index
+      vars:
+        vm_ip_address: "{{ vm_ip_base }}.{{ vm_ip_start + vm_index }}/23"
+
+      register: ocv_vm_deploy_results
+      # RECOMMENDED: Control concurrency to avoid overwhelming the API server
+      # Run 5 deployments concurrently
+      throttle: 2
+
+      # Or, to run a block of 5, wait for them, then run the next block of 5:
+      # serial: 5
 
 #    - name: Display VM Creation Status
 #      ansible.builtin.debug:
