@@ -129,8 +129,15 @@ spec:
       labels:
         kubevirt.io/domain: {{ vm_name }}
         kubevirt.io/size: large
-        affinity_group_1: ""        
+        affinity_group_1: ""
     spec:
+      accessCredentials:
+        - sshPublicKey:
+            propagationMethod:
+              noCloud: {}
+            source:
+              secret:
+                secretName: cdp-ssh
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -138,7 +145,7 @@ spec:
               matchExpressions:
               - key: affinity_group_1
                 operator: Exists
-            topologyKey: kubernetes.io/hostname    
+            topologyKey: kubernetes.io/hostname
       architecture: amd64
       domain:
         cpu:
@@ -173,7 +180,7 @@ spec:
         memory:
           guest: {{ vm_memory }}
         resources: {}
-      # hostname: {{ vm_name }}
+      hostname: {{ vm_name }}
       networks:
         - multus:
             networkName: default/localnet-network
@@ -192,15 +199,29 @@ spec:
                   gateway4: {{ vm_ip_gateway }}
                   nameservers:
                     search: [{{ dns_search_domain }}]
-                    addresses: [{{ dns_server }}] 
+                    addresses: [{{ dns_server }}]
               version: 2
             userData: |-
               #cloud-config
               user: {{ cloud_init_user }}
               password: r3dh4t!
               chpasswd: { expire: False }
-#              ssh_authorized_keys:
-#                - {{ ssh_key_content.content | b64decode }}
               ssh_pwauth: True
+              hostname: {{ vm_name }}.cdp.rdu2.scalelab.redhat.com
+              packages:
+                - dnf-automatic
+              runcmd:
+                - subscription-manager register --org=11009103 --activationkey=cdpbase
+                - subscription-manager release --set=9.5
+                - systemctl enable --now dnf-automatic-install.timer
+                - |
+                  #!/bin/bash
+                  # Add entries for sysctl
+                  echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+                  echo "net.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.conf
+                  echo "net.ipv6.conf.lo.disable_ipv6 = 0" >> /etc/sysctl.conf
+                  echo "vm.overcommit_memory=0" >> /etc/sysctl.conf
+                  echo "vm.swappiness=1" >> /etc/sysctl.conf
+                  # Enable sysctl
+                  sysctl -p
           name: cloudinitdisk
-
